@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-A script to batch rename PDF files based on metadata/XMP title and author
+A script to batch rename PDF files based on metadata/XMP title
 
 Requirements:
     - PDFMiner: https://github.com/pdfminer/pdfminer.six
@@ -31,7 +31,7 @@ from xmp import xmp_to_dict
 class RenamePDFsByTitle(object):
 
     """
-    This class parses PDF files for title and author and then
+    This class parses PDF files for title and then
     renames them.
     """
 
@@ -60,18 +60,14 @@ class RenamePDFsByTitle(object):
             print('Processing "%s":' % f)
 
             # Parse standard and XMP metadata, then go interactive if specified
-            title, author = self._get_info(f)
+            title = self._get_info(f)
 
-            # Reuse the base filename if there is an author but no title
-            if author and not title:
-                title = base
-
-            if not (author or title):
+            if not title:
                 print(' -- Could not find metadata in the file')
                 Nmissing += 1
                 continue
 
-            newf = os.path.join(path, self._new_filename(title, author))
+            newf = os.path.join(path, self._new_filename(title))
             print(' -- Renaming to "%s"' % newf)
             if self.dry_run:
                 continue
@@ -105,10 +101,8 @@ class RenamePDFsByTitle(object):
 
         return 0
 
-    def _new_filename(self, title, author):
+    def _new_filename(self, title):
         n = self._sanitize(title)
-        if author:
-            n = '%s - %s' % (self._sanitize(author), n)
         n = '%s.pdf' % n[:250]  # limit filenames to ~255 chars
         return n
 
@@ -117,7 +111,7 @@ class RenamePDFsByTitle(object):
         return "".join(c for c in s if c.isalnum() or c in keep).strip()
 
     def _get_info(self, fn):
-        title = author = None
+        title = None
 
         with open(fn, 'rb') as pdf:
             info = self._get_metadata(pdf)
@@ -131,23 +125,12 @@ class RenamePDFsByTitle(object):
                 except UnicodeDecodeError:
                     print(' -- Could not decode title bytes: %r' % ti)
 
-            if 'Author' in info:
-                au = self._resolve_objref(info['Author'])
-                try:
-                    author = au.decode('utf-8')
-                except AttributeError:
-                    pass
-                except UnicodeDecodeError:
-                    print(' -- Could not decode author bytes: %r' % au)
-
             if 'Metadata' in self.doc.catalog:
                 xmpt, xmpa = self._get_xmp_metadata()
                 xmpt = self._resolve_objref(xmpt)
                 xmpa = self._resolve_objref(xmpa)
                 if xmpt:
                     title = xmpt
-                if xmpa:
-                    author = xmpa
 
         if type(title) is str:
             title = title.strip()
@@ -155,27 +138,24 @@ class RenamePDFsByTitle(object):
                 title = None
 
         if self.interactive:
-            title, author = self._interactive_info_query(fn, title, author)
+            title = self._interactive_info_query(fn, title)
 
-        return title, author
+        return title
 
     def _resolve_objref(self, ref):
         if hasattr(ref, 'resolve'):
             return ref.resolve()
         return ref
 
-    def _interactive_info_query(self, fn, t, a):
+    def _interactive_info_query(self, fn, t):
         print('-' * 60)
         print('Filename:'.ljust(20), fn)
         print(' * Found (t)itle:'.ljust(20), '\"%s\"' % str(t))
-        print(' * Found (a)uthors:'.ljust(20), '\"%s\"' % str(a))
         ri = lambda p: input(p).lower().strip()
-        ans = ri('Change (t/a) or open (o) or keep (k)? (t/a/o/k) ')
+        ans = ri('Change (t) or open (o) or keep (k)? (t/a/o/k) ')
         while ans != 'k':
             if ans == 't':
                 t = input('New title: ').strip()
-            elif ans == 'a':
-                a = input('New author string: ').strip()
             elif ans == 'o':
                 subprocess.call(['open', fn])
             else:
