@@ -123,7 +123,8 @@ class RenamePDFsByTitle(object):
                 except AttributeError:
                     pass
                 except UnicodeDecodeError:
-                    print(' -- Could not decode title bytes: %r' % ti)
+                    print(' -- Could not decode title bytes as utf-8, trying latin-1: %r' % ti)
+                    title = ti.decode('latin-1')
 
             if 'Metadata' in self.doc.catalog:
                 xmpt, xmpa = self._get_xmp_metadata()
