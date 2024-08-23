@@ -178,8 +178,8 @@ class RenamePDFsByTitle(object):
 
     def _get_xmp_metadata(self):
         t = a = None
-        metadata = resolve1(self.doc.catalog['Metadata']).get_data()
         try:
+            metadata = resolve1(self.doc.catalog['Metadata']).get_data()
             md = xmp_to_dict(metadata)
         except:
             return t, a
